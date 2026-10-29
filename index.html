@@ -76,6 +76,8 @@
 html {
   scroll-behavior: smooth;
   scroll-padding-top: var(--nav-h);
+  /* keeps layout still when the viewer locks scrolling */
+  scrollbar-gutter: stable;
   -webkit-text-size-adjust: 100%;
 }
 
@@ -482,6 +484,172 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
   color: var(--text-muted-cream);
 }
 
+/* Garden shots: leaf-shaped bloom on reveal, depth tilt on hover, scroll parallax.
+   JS drives --rx/--ry (tilt), --px/--py (counter-drift) and --sy (parallax). */
+.shot {
+  transform: perspective(1100px) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg));
+  transition:
+    transform 700ms var(--ease-out-expo),
+    box-shadow 700ms var(--ease-out-expo),
+    clip-path 1500ms cubic-bezier(0.7, 0, 0.2, 1);
+}
+.shot img {
+  transform: translate3d(var(--px, 0px), calc(var(--py, 0px) + var(--sy, 0px)), 0) scale(var(--zoom, 1.16));
+  transition: transform 900ms var(--ease-out-expo);
+}
+.js .shot.is-budding img { --zoom: 1.6; }
+.shot.is-hover { --zoom: 1.22; box-shadow: 0 40px 70px -40px rgba(10,26,16,0.6); }
+.shot.is-away { visibility: hidden; }
+
+.shot-label {
+  position: absolute;
+  left: 0; right: 0; bottom: 0;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 3.5rem 1.25rem 1.1rem;
+  background: linear-gradient(to top, rgba(10,26,16,0.66), rgba(10,26,16,0));
+  color: var(--text-primary);
+  pointer-events: none;
+  opacity: 0;
+  transform: translateY(10px);
+  transition: opacity 400ms ease, transform 600ms var(--ease-out-expo);
+}
+.shot-title { font-family: var(--serif); font-style: italic; font-size: 1.3rem; line-height: 1.2; }
+.shot-hint {
+  font-size: 0.6875rem;
+  font-weight: 500;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--accent);
+  padding-bottom: 0.25rem;
+}
+.shot.is-hover .shot-label,
+.shot:focus-within .shot-label { opacity: 1; transform: none; }
+@media (hover: none) {
+  .shot-label { opacity: 1; transform: none; }
+}
+.shot-open { position: absolute; inset: 0; width: 100%; height: 100%; cursor: zoom-in; }
+.shot-open:focus-visible { outline: 1px solid var(--accent); outline-offset: -6px; }
+
+/* ========== Photo viewer ========== */
+.viewer { position: fixed; inset: 0; z-index: 200; color: var(--text-primary); }
+.viewer[hidden] { display: none; }
+.viewer-backdrop {
+  position: absolute;
+  inset: 0;
+  background: var(--bg-primary);
+  opacity: 0;
+  transition: opacity 500ms ease;
+}
+.viewer.is-open .viewer-backdrop { opacity: 1; }
+.viewer-stage { position: absolute; top: 10vh; bottom: 10vh; left: 5vw; right: calc(5vw + 360px); }
+
+.viewer-frame {
+  position: fixed;
+  overflow: hidden;
+  border-radius: 4px;
+  box-shadow: 0 50px 100px -50px rgba(0,0,0,0.6);
+  touch-action: pan-y;
+}
+.viewer-frame img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.viewer-frame.is-live img { animation: ken-burns 16s ease-out forwards; }
+.viewer-frame.is-blooming { transition: clip-path 1100ms cubic-bezier(0.7, 0, 0.2, 1); }
+@keyframes ken-burns {
+  from { transform: scale(1); }
+  to   { transform: scale(1.08) translate(-1%, -1%); }
+}
+
+.viewer-info {
+  position: absolute;
+  right: 5vw;
+  bottom: 10vh;
+  width: 300px;
+}
+.viewer-info > * {
+  opacity: 0;
+  transform: translateY(14px);
+  transition: opacity 450ms ease, transform 700ms var(--ease-out-expo);
+}
+.viewer.is-open .viewer-info > * { opacity: 1; transform: none; }
+.viewer.is-open .viewer-info > :nth-child(1) { transition-delay: 250ms; }
+.viewer.is-open .viewer-info > :nth-child(2) { transition-delay: 310ms; }
+.viewer.is-open .viewer-info > :nth-child(3) { transition-delay: 370ms; }
+.viewer.is-open .viewer-info > :nth-child(4) { transition-delay: 430ms; }
+.viewer.is-open .viewer-info > :nth-child(5) { transition-delay: 490ms; }
+.viewer.is-open .viewer-info.is-swapping > * {
+  opacity: 0;
+  transform: translateY(-8px);
+  transition: opacity 150ms ease, transform 150ms ease;
+  transition-delay: 0ms;
+}
+
+.viewer-count { font-size: 0.75rem; font-weight: 500; letter-spacing: 0.2em; color: var(--accent); }
+.viewer-title {
+  font-family: var(--serif);
+  font-weight: 400;
+  font-size: clamp(2.25rem, 3.5vw, 3.25rem);
+  letter-spacing: -0.02em;
+  line-height: 1.05;
+  margin-top: 1.25rem;
+}
+.viewer-latin { font-style: italic; font-size: 0.875rem; color: var(--text-muted); margin-top: 0.5rem; }
+.viewer-note { font-size: 0.95rem; line-height: 1.6; color: var(--text-muted); margin-top: 1.25rem; }
+
+.viewer-nav { display: flex; align-items: center; gap: 0.75rem; margin-top: 2.5rem; }
+.viewer-btn {
+  width: 48px;
+  height: 48px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(236,236,224,0.2);
+  border-radius: 4px;
+  transition: border-color 200ms ease, color 200ms ease;
+}
+.viewer-btn:hover { border-color: var(--accent); color: var(--accent); }
+.viewer-btn svg { width: 18px; height: 18px; }
+.viewer-dots { display: flex; gap: 6px; margin-left: 0.75rem; }
+.viewer-dot { width: 22px; height: 44px; display: inline-flex; align-items: center; }
+.viewer-dot::before {
+  content: '';
+  width: 100%;
+  height: 1.5px;
+  background: rgba(236,236,224,0.25);
+  transition: background-color 300ms ease;
+}
+.viewer-dot[aria-current="true"]::before { background: var(--accent); }
+
+.viewer-close {
+  position: absolute;
+  top: 1.25rem;
+  right: 5vw;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  min-height: 44px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  opacity: 0;
+  transition: opacity 400ms ease 200ms, color 200ms ease;
+}
+.viewer.is-open .viewer-close { opacity: 1; }
+.viewer-close:hover { color: var(--text-primary); }
+.viewer-close svg { width: 16px; height: 16px; }
+
+@media (max-width: 768px) {
+  .viewer-stage { top: 76px; bottom: 250px; left: 16px; right: 16px; }
+  .viewer-info { left: 1.5rem; right: 1.5rem; bottom: 1.5rem; width: auto; }
+  .viewer-title { font-size: 2rem; margin-top: 0.75rem; }
+  .viewer-note { margin-top: 0.75rem; }
+  .viewer-nav { margin-top: 1.25rem; }
+  .viewer-close { right: 1rem; top: 1rem; }
+}
+
 /* ========== Species ========== */
 .species {
   display: grid;
@@ -736,6 +904,9 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
   }
   .intro-overlay { display: none !important; }
   .js .reveal { opacity: 1 !important; transform: none !important; }
+  .shot, .shot img { transform: none !important; clip-path: none !important; }
+  .viewer-frame.is-live img { animation: none !important; }
+  .viewer-info > * { opacity: 1 !important; transform: none !important; }
   .foliage-layer { animation: none !important; will-change: auto; }
   .species-card:hover, .btn--primary:hover { transform: none !important; }
 }
@@ -921,11 +1092,31 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
 
     <div class="garden-media">
       <div class="photos">
-        <figure class="frame reveal"><img src="/assets/photos/first-garden/plant-01-pothos.jpg" alt="Pothos growing on the Mumbai balcony" loading="lazy" decoding="async" onerror="ph(this)"></figure>
-        <figure class="frame reveal"><img src="/assets/photos/first-garden/plant-02-neem.jpg" alt="Young neem in a balcony pot" loading="lazy" decoding="async" onerror="ph(this)"></figure>
-        <figure class="frame reveal"><img src="/assets/photos/first-garden/plant-03-tulsi.jpg" alt="Tulsi plant on the balcony" loading="lazy" decoding="async" onerror="ph(this)"></figure>
-        <figure class="frame reveal"><img src="/assets/photos/first-garden/plant-04-snake.jpg" alt="Snake plant by the balcony railing" loading="lazy" decoding="async" onerror="ph(this)"></figure>
-        <figure class="frame frame--wide reveal"><img src="/assets/photos/first-garden/balcony-wide.jpg" alt="Wide view of the finished balcony garden" loading="lazy" decoding="async" onerror="ph(this)"></figure>
+        <figure class="frame shot" data-index="0" data-title="Pothos" data-latin="Epipremnum aureum" data-note="Trails over the pot edge, and forgives a missed watering.">
+          <img src="/assets/photos/first-garden/plant-01-pothos.jpg" alt="Pothos growing on the Mumbai balcony" loading="lazy" decoding="async" onerror="ph(this)">
+          <figcaption class="shot-label"><span class="shot-title">Pothos</span><span class="shot-hint">View</span></figcaption>
+          <button class="shot-open" type="button" aria-label="View photo: Pothos"></button>
+        </figure>
+        <figure class="frame shot" data-index="1" data-title="Neem" data-latin="Azadirachta indica" data-note="A sun-hungry tree, kept compact in a terracotta pot.">
+          <img src="/assets/photos/first-garden/plant-02-neem.jpg" alt="Young neem in a balcony pot" loading="lazy" decoding="async" onerror="ph(this)">
+          <figcaption class="shot-label"><span class="shot-title">Neem</span><span class="shot-hint">View</span></figcaption>
+          <button class="shot-open" type="button" aria-label="View photo: Neem"></button>
+        </figure>
+        <figure class="frame shot" data-index="2" data-title="Tulsi" data-latin="Ocimum tenuiflorum" data-note="Sacred and medicinal; flowers freely in direct sun.">
+          <img src="/assets/photos/first-garden/plant-03-tulsi.jpg" alt="Tulsi plant on the balcony" loading="lazy" decoding="async" onerror="ph(this)">
+          <figcaption class="shot-label"><span class="shot-title">Tulsi</span><span class="shot-hint">View</span></figcaption>
+          <button class="shot-open" type="button" aria-label="View photo: Tulsi"></button>
+        </figure>
+        <figure class="frame shot" data-index="3" data-title="Snake Plant" data-latin="Sansevieria trifasciata" data-note="Stores water in its leaves and shrugs off dry spells.">
+          <img src="/assets/photos/first-garden/plant-04-snake.jpg" alt="Snake plant by the balcony railing" loading="lazy" decoding="async" onerror="ph(this)">
+          <figcaption class="shot-label"><span class="shot-title">Snake Plant</span><span class="shot-hint">View</span></figcaption>
+          <button class="shot-open" type="button" aria-label="View photo: Snake Plant"></button>
+        </figure>
+        <figure class="frame shot frame--wide" data-index="4" data-title="The whole balcony" data-latin="Mumbai, Maharashtra · 2026" data-note="South-facing, high-rise, inconsistent watering. Four plants, one corner.">
+          <img src="/assets/photos/first-garden/balcony-wide.jpg" alt="Wide view of the finished balcony garden" loading="lazy" decoding="async" onerror="ph(this)">
+          <figcaption class="shot-label"><span class="shot-title">The whole balcony</span><span class="shot-hint">View</span></figcaption>
+          <button class="shot-open" type="button" aria-label="View photo: The whole balcony"></button>
+        </figure>
       </div>
       <p class="caption">Mumbai, Maharashtra · 2026</p>
     </div>
@@ -1055,6 +1246,31 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
   </div>
 </footer>
 
+<!-- ========== Photo viewer ========== -->
+<div class="viewer" id="viewer" role="dialog" aria-modal="true" aria-label="First garden photos" hidden>
+  <div class="viewer-backdrop"></div>
+  <div class="viewer-stage"></div>
+  <div class="viewer-info" aria-live="polite">
+    <p class="viewer-count"></p>
+    <h3 class="viewer-title"></h3>
+    <p class="viewer-latin"></p>
+    <p class="viewer-note"></p>
+    <div class="viewer-nav">
+      <button class="viewer-btn viewer-prev" type="button" aria-label="Previous photo">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M11 6l-6 6 6 6"/></svg>
+      </button>
+      <button class="viewer-btn viewer-next" type="button" aria-label="Next photo">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+      </button>
+      <div class="viewer-dots"></div>
+    </div>
+  </div>
+  <button class="viewer-close" type="button">
+    Close
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
+  </button>
+</div>
+
 <script>
 (function () {
   var root = document.documentElement;
@@ -1159,7 +1375,7 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
     reveals.forEach(function (el) { el.classList.add('is-visible'); });
   } else {
     // Stagger siblings in the same grid so a row of cards doesn't land as one block.
-    document.querySelectorAll('.factors, .species, .photos').forEach(function (grid) {
+    document.querySelectorAll('.factors, .species').forEach(function (grid) {
       Array.prototype.forEach.call(grid.children, function (child, i) {
         child.style.transitionDelay = (i % 4) * 70 + 'ms';
       });
@@ -1176,6 +1392,304 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
     }, { threshold: 0.15 });
     reveals.forEach(function (el) { revealObserver.observe(el); });
   }
+
+  /* ---------- Leaf-to-frame morph ----------
+     Both polygons sample the same angles around the centre, so CSS can
+     interpolate between them. The frame polygon overshoots the box by 50%
+     so its straight edges never cut into the corners. */
+  var MORPH_POINTS = 64;
+  function leafOutline(size) {
+    var L = size * 0.62, W = size * 0.3, rot = -14 * Math.PI / 180, pts = [], i, s;
+    for (i = 0; i <= 60; i++) {
+      s = i / 60;
+      pts.push([(W / 2) * Math.pow(Math.sin(Math.PI * s), 0.85) * (1 - 0.2 * s), L / 2 - L * s]);
+    }
+    for (i = 59; i > 0; i--) pts.push([-pts[i][0], pts[i][1]]);
+    return pts.map(function (p) {
+      return [p[0] * Math.cos(rot) - p[1] * Math.sin(rot), p[0] * Math.sin(rot) + p[1] * Math.cos(rot)];
+    });
+  }
+  function rayHit(outline, dx, dy) {
+    var best = 0;
+    for (var i = 0; i < outline.length; i++) {
+      var a = outline[i], b = outline[(i + 1) % outline.length];
+      var ex = b[0] - a[0], ey = b[1] - a[1];
+      var den = dx * ey - dy * ex;
+      if (!den) continue;
+      var t = (a[0] * ey - a[1] * ex) / den, u = (a[0] * dy - a[1] * dx) / den;
+      if (t > best && u >= 0 && u <= 1) best = t;
+    }
+    return best;
+  }
+  function morphPolygons(w, h) {
+    var outline = leafOutline(Math.min(w, h)), leaf = [], frame = [];
+    for (var k = 0; k < MORPH_POINTS; k++) {
+      var th = 2 * Math.PI * k / MORPH_POINTS, dx = Math.cos(th), dy = Math.sin(th);
+      var tl = rayHit(outline, dx, dy);
+      var tf = 1.5 * Math.min(Math.abs(dx) > 1e-6 ? (w / 2) / Math.abs(dx) : Infinity,
+                              Math.abs(dy) > 1e-6 ? (h / 2) / Math.abs(dy) : Infinity);
+      leaf.push(pct(dx * tl, w) + ' ' + pct(dy * tl, h));
+      frame.push(pct(dx * tf, w) + ' ' + pct(dy * tf, h));
+    }
+    return { leaf: 'polygon(' + leaf.join(',') + ')', frame: 'polygon(' + frame.join(',') + ')' };
+  }
+  function pct(v, size) { return (50 + v / size * 100).toFixed(2) + '%'; }
+
+  function bloom(el, poly, done) {
+    el.style.clipPath = poly.frame;
+    el.addEventListener('transitionend', function end(e) {
+      if (e.propertyName !== 'clip-path') return;
+      el.removeEventListener('transitionend', end);
+      el.style.clipPath = '';
+      if (done) done();
+    });
+  }
+
+  /* ---------- Garden shots ---------- */
+  var shots = Array.prototype.slice.call(document.querySelectorAll('.shot'));
+  var finePointer = window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+
+  if (!reduced && 'IntersectionObserver' in window) {
+    shots.forEach(function (shot) {
+      var r = shot.getBoundingClientRect();
+      shot._poly = morphPolygons(r.width, r.height);
+      shot.style.clipPath = shot._poly.leaf;
+      shot.classList.add('is-budding');
+    });
+    void document.body.offsetWidth;
+    var bloomObserver = new IntersectionObserver(function (entries) {
+      entries.forEach(function (entry) {
+        if (!entry.isIntersecting) return;
+        var shot = entry.target;
+        bloomObserver.unobserve(shot);
+        setTimeout(function () {
+          shot.classList.remove('is-budding');
+          bloom(shot, shot._poly);
+        }, (+shot.dataset.index % 2) * 140 + (shot.classList.contains('frame--wide') ? 120 : 0));
+      });
+      // The observer only sees the leaf-clipped area, so trigger on the leaf
+      // crossing a line a quarter of the way up the viewport, not on a ratio.
+    }, { threshold: 0, rootMargin: '0px 0px -25% 0px' });
+    shots.forEach(function (shot) { bloomObserver.observe(shot); });
+
+    // Parallax: images drift against the scroll inside their frames.
+    var ticking = false;
+    function parallax() {
+      ticking = false;
+      var vh = window.innerHeight;
+      shots.forEach(function (shot) {
+        var r = shot.getBoundingClientRect();
+        if (r.bottom < 0 || r.top > vh) return;
+        var p = (r.top + r.height / 2 - vh / 2) / vh;
+        shot.style.setProperty('--sy', (-p * r.height * 0.06).toFixed(1) + 'px');
+      });
+    }
+    window.addEventListener('scroll', function () {
+      if (!ticking) { ticking = true; requestAnimationFrame(parallax); }
+    }, { passive: true });
+    parallax();
+  }
+
+  // Tilt toward the cursor; the photo drifts the other way, like looking through a window.
+  if (!reduced && finePointer) {
+    shots.forEach(function (shot) {
+      shot.addEventListener('pointermove', function (e) {
+        var r = shot.getBoundingClientRect();
+        var x = (e.clientX - r.left) / r.width - 0.5, y = (e.clientY - r.top) / r.height - 0.5;
+        shot.classList.add('is-hover');
+        shot.style.setProperty('--rx', (-y * 9).toFixed(2) + 'deg');
+        shot.style.setProperty('--ry', (x * 11).toFixed(2) + 'deg');
+        shot.style.setProperty('--px', (-x * r.width * 0.05).toFixed(1) + 'px');
+        shot.style.setProperty('--py', (-y * r.height * 0.05).toFixed(1) + 'px');
+      });
+      shot.addEventListener('pointerleave', function () { resetTilt(shot); });
+    });
+  }
+  function resetTilt(shot) {
+    shot.classList.remove('is-hover');
+    ['--rx', '--ry', '--px', '--py'].forEach(function (v) { shot.style.removeProperty(v); });
+  }
+
+  /* ---------- Photo viewer ---------- */
+  var viewer = document.getElementById('viewer');
+  var stage = viewer.querySelector('.viewer-stage');
+  var info = viewer.querySelector('.viewer-info');
+  var dots = viewer.querySelector('.viewer-dots');
+  var EASE = 'cubic-bezier(0.16, 1, 0.3, 1)';
+  var current = -1, frame = null, opener = null;
+
+  shots.forEach(function (shot, i) {
+    var dot = document.createElement('button');
+    dot.type = 'button';
+    dot.className = 'viewer-dot';
+    dot.setAttribute('aria-label', 'Photo ' + (i + 1) + ': ' + shot.dataset.title);
+    dot.addEventListener('click', function () { go(i); });
+    dots.appendChild(dot);
+    shot.querySelector('.shot-open').addEventListener('click', function () {
+      if (shot.querySelector('img')) open(i, this);
+    });
+  });
+
+  function dur(ms) { return reduced ? 0 : ms; }
+  function pad(n) { return (n < 10 ? '0' : '') + n; }
+
+  // Where a photo sits in the stage, letterboxed to its natural shape.
+  function fitRect(img) {
+    var box = stage.getBoundingClientRect();
+    var ratio = (img.naturalWidth || 4) / (img.naturalHeight || 5);
+    var w = Math.min(box.width, box.height * ratio), h = w / ratio;
+    return { left: box.left + (box.width - w) / 2, top: box.top + (box.height - h) / 2, width: w, height: h };
+  }
+  function place(el, r) {
+    el.style.left = r.left + 'px'; el.style.top = r.top + 'px';
+    el.style.width = r.width + 'px'; el.style.height = r.height + 'px';
+  }
+  function rectKeyframe(r) {
+    return { left: r.left + 'px', top: r.top + 'px', width: r.width + 'px', height: r.height + 'px' };
+  }
+  function makeFrame(i) {
+    var src = shots[i].querySelector('img');
+    var el = document.createElement('div');
+    el.className = 'viewer-frame';
+    var img = document.createElement('img');
+    img.src = src.currentSrc || src.src;
+    img.alt = src.alt;
+    el.appendChild(img);
+    viewer.insertBefore(el, info);
+    return { el: el, img: img, rect: fitRect(src) };
+  }
+
+  function setInfo(i) {
+    var d = shots[i].dataset;
+    viewer.querySelector('.viewer-count').textContent = pad(i + 1) + ' / ' + pad(shots.length);
+    viewer.querySelector('.viewer-title').textContent = d.title;
+    viewer.querySelector('.viewer-latin').textContent = d.latin;
+    viewer.querySelector('.viewer-note').textContent = d.note;
+    Array.prototype.forEach.call(dots.children, function (dot, k) {
+      dot.setAttribute('aria-current', String(k === i));
+    });
+  }
+
+  function open(i, trigger) {
+    if (current !== -1) return;
+    opener = trigger;
+    var shot = shots[i], from = shot.getBoundingClientRect();
+    resetTilt(shot);
+    viewer.hidden = false;
+    root.style.overflow = 'hidden';
+    current = i;
+    setInfo(i);
+    frame = makeFrame(i);
+    place(frame.el, frame.rect);
+    shot.classList.add('is-away');
+    // Fly from the grid cell to the stage, unzooming from the grid's crop.
+    frame.el.animate([rectKeyframe(from), rectKeyframe(frame.rect)], { duration: dur(800), easing: EASE });
+    frame.img.animate([{ transform: 'scale(1.16)' }, { transform: 'scale(1)' }], { duration: dur(800), easing: EASE });
+    var f = frame;
+    setTimeout(function () { f.el.classList.add('is-live'); }, dur(800));
+    void viewer.offsetWidth;
+    viewer.classList.add('is-open');
+    viewer.querySelector('.viewer-close').focus({ preventScroll: true });
+  }
+
+  function go(i) {
+    if (current === -1) return;
+    i = (i + shots.length) % shots.length;
+    if (i === current) return;
+    var dir = (i > current && !(current === 0 && i === shots.length - 1)) || (current === shots.length - 1 && i === 0) ? 1 : -1;
+    shots[current].classList.remove('is-away');
+    shots[i].classList.add('is-away');
+
+    // Outgoing photo sinks back; incoming one blooms open through a leaf.
+    var old = frame;
+    old.el.classList.remove('is-live');
+    old.el.animate([{ opacity: 1, transform: 'scale(1)' }, { opacity: 0, transform: 'scale(0.94)' }],
+      { duration: dur(700), easing: EASE, fill: 'forwards' });
+    setTimeout(function () { old.el.remove(); }, dur(700));
+
+    frame = makeFrame(i);
+    place(frame.el, frame.rect);
+    frame.img.animate([{ transform: 'translateX(' + dir * 6 + '%) scale(1.3)' }, { transform: 'none' }],
+      { duration: dur(1100), easing: EASE });
+    if (!reduced) {
+      var poly = morphPolygons(frame.rect.width, frame.rect.height);
+      frame.el.style.clipPath = poly.leaf;
+      void frame.el.offsetWidth;
+      frame.el.classList.add('is-blooming');
+      var f = frame;
+      bloom(f.el, poly, function () { f.el.classList.remove('is-blooming'); f.el.classList.add('is-live'); });
+    } else {
+      frame.el.classList.add('is-live');
+    }
+
+    current = i;
+    info.classList.add('is-swapping');
+    setTimeout(function () {
+      setInfo(i);
+      info.classList.remove('is-swapping');
+    }, dur(160));
+  }
+
+  function close() {
+    if (current === -1) return;
+    var shot = shots[current], f = frame;
+    root.style.overflow = '';
+    var to = shot.getBoundingClientRect();
+    var onScreen = to.bottom > 0 && to.top < window.innerHeight;
+    f.el.classList.remove('is-live');
+    var anim = onScreen
+      ? f.el.animate([rectKeyframe(f.rect), rectKeyframe(to)], { duration: dur(650), easing: EASE, fill: 'forwards' })
+      : f.el.animate([{ opacity: 1 }, { opacity: 0, transform: 'scale(0.94)' }], { duration: dur(400), fill: 'forwards' });
+    viewer.classList.remove('is-open');
+    var closing = current;
+    anim.onfinish = function () {
+      f.el.remove();
+      if (current !== closing) shot.classList.remove('is-away');
+      if (current !== -1) return; // reopened mid-close
+      viewer.querySelectorAll('.viewer-frame').forEach(function (el) { el.remove(); });
+      viewer.hidden = true;
+      if (opener) opener.focus({ preventScroll: true });
+    };
+    current = -1;
+    frame = null;
+  }
+
+  viewer.querySelector('.viewer-close').addEventListener('click', close);
+  viewer.querySelector('.viewer-prev').addEventListener('click', function () { go(current - 1); });
+  viewer.querySelector('.viewer-next').addEventListener('click', function () { go(current + 1); });
+  var swiped = false;
+  function closeUnlessSwiped() { if (swiped) { swiped = false; return; } close(); }
+  viewer.querySelector('.viewer-backdrop').addEventListener('click', closeUnlessSwiped);
+  stage.addEventListener('click', closeUnlessSwiped);
+
+  document.addEventListener('keydown', function (e) {
+    if (current === -1) return;
+    if (e.key === 'Escape') { e.stopPropagation(); close(); }
+    else if (e.key === 'ArrowRight') go(current + 1);
+    else if (e.key === 'ArrowLeft') go(current - 1);
+    else if (e.key === 'Tab') {
+      var items = viewer.querySelectorAll('button');
+      var first = items[0], last = items[items.length - 1];
+      if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+      else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+    }
+  });
+
+  // Swipe between photos on touch screens.
+  var swipeX = null;
+  viewer.addEventListener('pointerdown', function (e) { swipeX = e.clientX; swiped = false; });
+  viewer.addEventListener('pointerup', function (e) {
+    if (swipeX === null || current === -1) return;
+    var dx = e.clientX - swipeX;
+    swipeX = null;
+    if (Math.abs(dx) > 50) { swiped = true; go(current + (dx < 0 ? 1 : -1)); }
+  });
+
+  window.addEventListener('resize', function () {
+    if (current === -1) return;
+    frame.rect = fitRect(shots[current].querySelector('img'));
+    place(frame.el, frame.rect);
+  });
 })();
 </script>
 </body>
